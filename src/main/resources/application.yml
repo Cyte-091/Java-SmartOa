@@ -1,0 +1,15 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: smart-oa-backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/smart_oa
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+logging:
+  level:
+    root: info
