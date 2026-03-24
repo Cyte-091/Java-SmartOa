@@ -1,6 +1,7 @@
 package com.example.oa.auth.dto;
 
 
+import com.example.oa.model.SysUser;
 import lombok.Data;
 
 
@@ -15,5 +16,4 @@ public class LoginResponse {
     private Integer status;
 
     private String token;
-
 }
