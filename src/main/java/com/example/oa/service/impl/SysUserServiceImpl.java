@@ -30,39 +30,35 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private static final long JWT_EXPIRE = 2 * 60 * 60 * 1000L;
 
     /**
-     * 登录接口核心逻辑。
-     *
-     * 处理流程：
-     * 1) 校验参数
-     * 2) 按用户名查用户
-     * 3) 校验用户状态与密码
-     * 4) 生成 JWT
-     * 5) 返回脱敏后的登录信息（含 token）
+     * 登录核心流程。
+     * 1) 参数校验
+     * 2) 查用户并校验状态
+     * 3) 校验密码
+     * 4) 生成 token 并返回
      */
     @Override
     public LoginResponse login(LoginRequest request) {
-        // 第一步：基础参数判空，避免后续 trim/查询报错。
+        // 1) 判空，避免后续 trim 或查库报错。
         if (request.getUsername() == null || request.getUsername().trim().isEmpty()
                 || request.getPassword() == null || request.getPassword().trim().isEmpty()) {
             throw new UserException(ErrorEnum.LOGIN_ERROR, "用户名和密码不能为空");
         }
 
-        // 第二步：按用户名查库（这里默认用户名唯一）。
+        // 2) 按用户名查用户。
         QueryWrapper<SysUser> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", request.getUsername().trim());
         SysUser dbUser = sysUserMapper.selectOne(queryWrapper);
 
-        // 用户不存在，直接返回登录失败。
         if (dbUser == null) {
             throw new UserException(ErrorEnum.USER_NOT_FOUND, "用户不存在");
         }
 
-        // 账号状态检查：null 或 0 都视为不可登录。
+        // 状态为 null 或 0 都视为禁用。
         if (dbUser.getStatus() == null || dbUser.getStatus() == 0) {
             throw new UserException(ErrorEnum.USER_DISABLED, "用户已禁用");
         }
 
-        // 第三步：密码比对（当前是明文比对，后续建议升级为 BCrypt）。
+        // 3) 密码比对（当前是明文比对，后续可升级 BCrypt）。
         String inputPwd = request.getPassword().trim();
         if (dbUser.getPassword() == null) {
             throw new UserException(ErrorEnum.LOGIN_ERROR, "密码未设置");
@@ -72,7 +68,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new UserException(ErrorEnum.PASSWORD_ERROR, "密码错误");
         }
 
-        // 第四步：生成 token，subject 存用户 id，后续 /me 通过它反查用户。
+        // 4) 签发 token，subject 存 userId。
         String token = Jwts.builder()
                 .setSubject(dbUser.getId().toString())
                 .setIssuedAt(new Date())
@@ -80,7 +76,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .signWith(SignatureAlgorithm.HS256, JWT_SECRET)
                 .compact();
 
-        // 第五步：组装返回体，token 单独塞入 response。
+        // 返回登录结果。
         LoginResponse response = new LoginResponse();
         BeanUtils.copyProperties(dbUser, response);
         response.setToken(token);
@@ -89,26 +85,24 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     /**
      * 根据 Authorization 请求头获取当前登录用户。
-     *
-     * 要求请求头格式：Bearer <token>
      */
     @Override
     public LoginResponse getCurrentUser(String tokenHeader) {
-        // 先校验请求头格式，防止 substring 越界。
+        // 1) 校验请求头格式。
         if (tokenHeader == null || !tokenHeader.startsWith("Bearer ")) {
             throw new UserException(ErrorEnum.LOGIN_ERROR, "未登录或 token 格式错误");
         }
 
-        // 去掉 "Bearer " 前缀，拿到纯 token 字符串。
+        // 2) 提取纯 token。
         String token = tokenHeader.substring(7);
 
-        // 解析 token：验签 + 验过期，失败会抛异常交给全局异常处理。
+        // 3) 解析 token，校验签名和过期时间。
         Claims claims = Jwts.parser()
                 .setSigningKey(JWT_SECRET)
                 .parseClaimsJws(token)
                 .getBody();
 
-        // 登录时把用户 id 放在 subject，这里取出来反查用户。
+        // 4) 根据 subject(userId) 查用户。
         Long userId = Long.valueOf(claims.getSubject());
         SysUser user = sysUserMapper.selectById(userId);
 
@@ -116,9 +110,34 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new UserException(ErrorEnum.USER_NOT_FOUND, "用户不存在");
         }
 
-        // 返回当前用户基础信息（不返回密码字段）。
+        // 5) 返回用户基础信息（不返回密码）。
         LoginResponse response = new LoginResponse();
         BeanUtils.copyProperties(user, response);
         return response;
+    }
+
+    /**
+     * 退出登录。
+     *
+     * 当前阶段采用无状态 JWT：只校验 token 合法性。
+     * 后续若要“立即失效”，需要接入 Redis 黑名单。
+     */
+    @Override
+    public void logout(String tokenHeader) {
+        // 1) 校验请求头格式。
+        if (tokenHeader == null || !tokenHeader.startsWith("Bearer ")) {
+            throw new UserException(ErrorEnum.LOGIN_ERROR, "未登录或 token 格式错误");
+        }
+
+        // 2) 提取 token 并做解析校验。
+        String token = tokenHeader.substring(7);
+        try {
+            Jwts.parser()
+                    .setSigningKey(JWT_SECRET)
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (Exception e) {
+            throw new UserException(ErrorEnum.TOKEN_INVALID, "token 不合法");
+        }
     }
 }
