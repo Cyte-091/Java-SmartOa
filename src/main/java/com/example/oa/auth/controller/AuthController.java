@@ -1,7 +1,9 @@
 package com.example.oa.auth.controller;
 
+import com.example.oa.auth.dto.ChangePwdRequest;
 import com.example.oa.auth.dto.LoginRequest;
 import com.example.oa.auth.dto.LoginResponse;
+import com.example.oa.auth.dto.ProfileResponse;
 import com.example.oa.common.response.ApiResponse;
 import com.example.oa.service.SysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,5 +48,20 @@ public class AuthController {
     public ApiResponse<Void> logout(@RequestHeader("Authorization") String token) {
         sysUserService.logout(token);
         return ApiResponse.success();
+    }
+
+    /**
+     * 修改密码
+     */
+    @PostMapping("/change-password")
+    public ApiResponse<Void> changePwd(@Valid @RequestBody ChangePwdRequest request, @RequestHeader("Authorization") String token) {
+        sysUserService.changePassword(request, token);
+        return ApiResponse.success();
+    }
+
+    @GetMapping("/profile")
+    public ApiResponse<ProfileResponse> profile(@RequestHeader("Authorization") String token) {
+        ProfileResponse response = sysUserService.getProfile(token);
+        return ApiResponse.success(response);
     }
 }

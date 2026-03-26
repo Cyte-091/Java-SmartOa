@@ -1,21 +1,14 @@
 package com.example.oa.auth.dto;
 
-
-import com.example.oa.model.SysUser;
 import lombok.Data;
 
-
-
 @Data
-public class LoginResponse {
-
+public class ProfileResponse {
     private Long id;
 
     private String username;
 
-    private Integer status;
-
     private String displayName;
 
-    private String token;
+    private Integer status;
 }
