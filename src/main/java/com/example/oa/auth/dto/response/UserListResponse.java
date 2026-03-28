@@ -1,13 +1,11 @@
-package com.example.oa.auth.dto;
+package com.example.oa.auth.dto.response;
 
-
-import com.example.oa.model.SysUser;
 import lombok.Data;
 
-
+import java.time.LocalDateTime;
 
 @Data
-public class LoginResponse {
+public class UserListResponse {
 
     private Long id;
 
@@ -17,5 +15,5 @@ public class LoginResponse {
 
     private String displayName;
 
-    private String token;
+    private LocalDateTime createdAt;
 }

@@ -1,4 +1,4 @@
-package com.example.oa.auth.dto;
+package com.example.oa.auth.dto.request;
 
 import lombok.Data;
 

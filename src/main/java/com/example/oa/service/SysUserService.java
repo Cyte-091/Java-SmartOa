@@ -1,11 +1,16 @@
 package com.example.oa.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.example.oa.auth.dto.ChangePwdRequest;
-import com.example.oa.auth.dto.LoginRequest;
-import com.example.oa.auth.dto.LoginResponse;
-import com.example.oa.auth.dto.ProfileResponse;
+import com.example.oa.auth.dto.request.ChangePwdRequest;
+import com.example.oa.auth.dto.request.LoginRequest;
+import com.example.oa.auth.dto.request.ResetPwdRequest;
+import com.example.oa.auth.dto.request.UpdateStatusRequest;
+import com.example.oa.auth.dto.response.LoginResponse;
+import com.example.oa.auth.dto.response.ProfileResponse;
+import com.example.oa.auth.dto.response.UserListResponse;
 import com.example.oa.model.SysUser;
+
+import java.util.List;
 
 public interface SysUserService extends IService<SysUser> {
 
@@ -27,4 +32,10 @@ public interface SysUserService extends IService<SysUser> {
     void changePassword(ChangePwdRequest request, String token);
 
     ProfileResponse getProfile(String token);
+
+    void resetPwd(Long id, ResetPwdRequest request, String token);
+
+    void updateStatus(Long id, UpdateStatusRequest request, String token);
+
+    List<UserListResponse> getUserList(String tokenHeader);
 }

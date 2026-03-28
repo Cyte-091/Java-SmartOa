@@ -2,7 +2,7 @@ package com.example.oa.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.example.oa.auth.dto.LoginResponse;
+import com.example.oa.auth.dto.response.LoginResponse;
 import com.example.oa.mapper.SysMenuMapper;
 import com.example.oa.model.SysMenu;
 import com.example.oa.model.SysRole;
