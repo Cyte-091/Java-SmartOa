@@ -8,6 +8,7 @@ import com.example.oa.auth.dto.request.UpdateStatusRequest;
 import com.example.oa.auth.dto.response.LoginResponse;
 import com.example.oa.auth.dto.response.ProfileResponse;
 import com.example.oa.auth.dto.response.UserListResponse;
+import com.example.oa.common.response.PageResult;
 import com.example.oa.model.SysUser;
 
 import java.util.List;
@@ -37,5 +38,5 @@ public interface SysUserService extends IService<SysUser> {
 
     void updateStatus(Long id, UpdateStatusRequest request, String token);
 
-    List<UserListResponse> getUserList(String tokenHeader);
+    PageResult<UserListResponse> getUserList(Integer pageNum, Integer pageSize, String keyword, String tokenHeader);
 }

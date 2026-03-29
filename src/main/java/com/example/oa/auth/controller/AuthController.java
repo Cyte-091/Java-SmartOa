@@ -8,6 +8,7 @@ import com.example.oa.auth.dto.response.LoginResponse;
 import com.example.oa.auth.dto.response.ProfileResponse;
 import com.example.oa.auth.dto.response.UserListResponse;
 import com.example.oa.common.response.ApiResponse;
+import com.example.oa.common.response.PageResult;
 import com.example.oa.service.SysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -100,9 +101,12 @@ public class AuthController {
         return ApiResponse.success("管理员修改用户状态成功");
     }
 
-    @GetMapping("user/list")
-    public ApiResponse<List<UserListResponse>> userList(@RequestHeader("Authorization") String token) {
-        List<UserListResponse> response = sysUserService.getUserList(token);
+    @GetMapping("/user/list")
+    public ApiResponse<PageResult<UserListResponse>> userList(@RequestParam(defaultValue = "1") Integer pageNum,
+                                                              @RequestParam(defaultValue = "10") Integer pageSize,
+                                                              @RequestParam(required = false) String keyword,
+                                                              @RequestHeader("Authorization") String token) {
+        PageResult<UserListResponse> response = sysUserService.getUserList(pageNum, pageSize, keyword, token);
         return ApiResponse.success(response);
     }
 

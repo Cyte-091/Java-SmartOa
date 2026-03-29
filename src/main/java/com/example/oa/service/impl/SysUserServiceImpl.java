@@ -1,6 +1,7 @@
 package com.example.oa.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.oa.auth.dto.request.ChangePwdRequest;
 import com.example.oa.auth.dto.request.LoginRequest;
@@ -10,6 +11,7 @@ import com.example.oa.auth.dto.response.LoginResponse;
 import com.example.oa.auth.dto.response.ProfileResponse;
 import com.example.oa.auth.dto.response.UserListResponse;
 import com.example.oa.common.exception.UserException;
+import com.example.oa.common.response.PageResult;
 import com.example.oa.constants.user.ErrorEnum;
 import com.example.oa.mapper.SysUserMapper;
 import com.example.oa.model.SysRole;
@@ -341,30 +343,47 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
      * @return
      */
     @Override
-    public List<UserListResponse> getUserList(String tokenHeader) {
-        // 1. 校验当前用户是管理员
+    public PageResult<UserListResponse> getUserList(Integer pageNum, Integer pageSize, String keyword, String tokenHeader) {
+        // 校验当前用户是管理员
         LoginResponse currentUser = sysUserService.getCurrentUser(tokenHeader);
         if (!isAdmin(currentUser)) {
             throw new UserException(ErrorEnum.NOT_ADMIN, "非管理员，权限不足");
         }
 
-        // 2. 查询所有用户，并按id倒序
-        QueryWrapper<SysUser> queryWrapper = new QueryWrapper<>();
-        queryWrapper.orderByDesc("id");
-        List<SysUser> userList = sysUserMapper.selectList(queryWrapper);
+        // 构建分页对象（核心！）
+        Page<SysUser> page = new Page<>(pageNum, pageSize);
 
-        // 3. 封装成 DTO（不返回密码）
-        List<UserListResponse> result = new ArrayList<>();
+        // 查询所有用户，并按id倒序
+        QueryWrapper<SysUser> queryWrapper = new QueryWrapper<>();
+        // 模糊查询的核心代码
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            queryWrapper.and(w -> w.like("username", keyword).or().like("display_name", keyword));
+        }
+
+        queryWrapper.orderByDesc("id");
+
+        // 分页查询
+        sysUserMapper.selectPage(page, queryWrapper);
+
+        // 封装成 DTO（不返回密码）
+        List<UserListResponse> respList = new ArrayList<>();
         for (SysUser user :
-                userList) {
+                page.getRecords()) {
             UserListResponse resp = new UserListResponse();
             resp.setId(user.getId());
             resp.setUsername(user.getUsername());
             resp.setDisplayName(user.getDisplayName());
             resp.setStatus(user.getStatus());
             resp.setCreatedAt(user.getCreatedAt());
-            result.add(resp);
+            respList.add(resp);
         }
+
+        // 封装分页返回结果
+        PageResult<UserListResponse> result = new PageResult<>();
+        result.setPageNum(page.getCurrent());
+        result.setPageSize(page.getSize());
+        result.setTotal(page.getTotal());
+        result.setList(respList);
 
         return result;
     }
