@@ -9,11 +9,14 @@ import com.example.oa.auth.dto.request.ResetPwdRequest;
 import com.example.oa.auth.dto.request.UpdateStatusRequest;
 import com.example.oa.auth.dto.response.LoginResponse;
 import com.example.oa.auth.dto.response.ProfileResponse;
+import com.example.oa.auth.dto.response.UserDetailsResponse;
 import com.example.oa.auth.dto.response.UserListResponse;
 import com.example.oa.common.exception.UserException;
 import com.example.oa.common.response.PageResult;
 import com.example.oa.constants.user.ErrorEnum;
+import com.example.oa.mapper.SysRoleMapper;
 import com.example.oa.mapper.SysUserMapper;
+import com.example.oa.mapper.SysUserRoleMapper;
 import com.example.oa.model.SysRole;
 import com.example.oa.model.SysUser;
 import com.example.oa.model.SysUserRole;
@@ -40,6 +43,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Autowired
     private SysUserMapper sysUserMapper;
+
+    @Autowired
+    private SysUserRoleMapper sysUserRoleMapper;
+
+    @Autowired
+    private SysRoleMapper sysRoleMapper;
 
     @Autowired
     private SysUserService sysUserService;
@@ -334,7 +343,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 6) 更新
         dbUser.setStatus(request.getStatus());
         sysUserMapper.updateById(dbUser);
-
     }
 
     /**
@@ -343,11 +351,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
      * @return
      */
     @Override
-    public PageResult<UserListResponse> getUserList(Integer pageNum, Integer pageSize, String keyword, String tokenHeader) {
+    public PageResult<UserListResponse> getUserList(Integer pageNum, Integer pageSize, String keyword, Integer status, String tokenHeader) {
         // 校验当前用户是管理员
         LoginResponse currentUser = sysUserService.getCurrentUser(tokenHeader);
         if (!isAdmin(currentUser)) {
             throw new UserException(ErrorEnum.NOT_ADMIN, "非管理员，权限不足");
+        }
+
+        // 2. 校验status合法性（如果传了的话）
+        if (status != null) {
+            if (status != 0 && status != 1) {
+                throw new UserException("用户状态非法，只允许0或1");
+            }
         }
 
         // 构建分页对象（核心！）
@@ -360,6 +375,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             queryWrapper.and(w -> w.like("username", keyword).or().like("display_name", keyword));
         }
 
+        if (status !=null) {
+            queryWrapper.eq("status", status);
+        }
+
         queryWrapper.orderByDesc("id");
 
         // 分页查询
@@ -370,11 +389,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         for (SysUser user :
                 page.getRecords()) {
             UserListResponse resp = new UserListResponse();
-            resp.setId(user.getId());
-            resp.setUsername(user.getUsername());
-            resp.setDisplayName(user.getDisplayName());
-            resp.setStatus(user.getStatus());
-            resp.setCreatedAt(user.getCreatedAt());
+            BeanUtils.copyProperties(user, resp);
             respList.add(resp);
         }
 
@@ -386,6 +401,71 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         result.setList(respList);
 
         return result;
+    }
+
+    /**
+     * 获取用户详情（仅管理员可用）
+     * @param id 用户ID
+     * @param tokenHeader 请求头中的token
+     * @return 用户详情DTO
+     */
+    @Override
+    public UserDetailsResponse getUserDetails(Long id, String tokenHeader) {
+        // 1. 解析token，获取当前登录用户信息
+        LoginResponse currentUser = sysUserService.getCurrentUser(tokenHeader);
+
+        // 2. 校验是否为管理员，非管理员抛出权限异常
+        if (!isAdmin(currentUser)) {
+            throw new UserException(ErrorEnum.NOT_ADMIN, "非管理员，权限不足");
+        }
+
+        // 3. 根据用户ID查询数据库用户信息
+        SysUser dbUser = sysUserMapper.selectById(id);
+
+        // 4. 用户不存在，抛出用户不存在异常
+        if (dbUser == null) {
+            throw new UserException(ErrorEnum.USER_NOT_FOUND, "用户不存在");
+        }
+
+//        // ===================== 【核心增强：查询用户角色】 =====================
+//        // 5. 根据用户ID 查询中间表 sys_user_role，获取该用户拥有的所有角色ID
+//        QueryWrapper<SysUserRole> userRoleQuery = new QueryWrapper<>();
+//        userRoleQuery.eq("user_id", id);
+//        List<SysUserRole> userRoleList = sysUserRoleMapper.selectList(userRoleQuery);
+//
+//        // 6. 提取角色ID列表
+//        List<Long> roleIdList = new ArrayList<>();
+//        for (SysUserRole userRole : userRoleList) {
+//            roleIdList.add(userRole.getRoleId());
+//        }
+//
+//        // 7. 根据角色ID 查询 sys_role，获取角色编码 role_code
+//        List<String> roleCodes = new ArrayList<>();
+//        if (!roleIdList.isEmpty()) {
+//            QueryWrapper<SysRole> roleQuery = new QueryWrapper<>();
+//            roleQuery.in("id", roleIdList);
+//            List<SysRole> roleList = sysRoleMapper.selectList(roleQuery);
+//
+//            // 提取角色编码
+//            for (SysRole role : roleList) {
+//                roleCodes.add(role.getRoleCode());
+//            }
+//        }
+//        // ====================================================================
+
+        // ===================== 【联表查询：一步到位】 =====================
+        // 直接通过用户ID查出所有角色编码，一条SQL搞定
+        List<String> roleCodes = sysRoleMapper.selectRoleCodesByUserId(id);
+        // ==================================================================
+
+        // 8. 对象拷贝：将数据库实体类属性复制到DTO中（避免密码等敏感字段泄露）
+        UserDetailsResponse response = new UserDetailsResponse();
+        BeanUtils.copyProperties(dbUser, response);
+        // 9. 设置角色编码列表到返回对象
+        response.setRoleCodes(roleCodes);
+
+        // 6. 返回最终用户详情
+        return response;
     }
 
     /**

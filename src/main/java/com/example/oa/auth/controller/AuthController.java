@@ -6,6 +6,7 @@ import com.example.oa.auth.dto.request.ResetPwdRequest;
 import com.example.oa.auth.dto.request.UpdateStatusRequest;
 import com.example.oa.auth.dto.response.LoginResponse;
 import com.example.oa.auth.dto.response.ProfileResponse;
+import com.example.oa.auth.dto.response.UserDetailsResponse;
 import com.example.oa.auth.dto.response.UserListResponse;
 import com.example.oa.common.response.ApiResponse;
 import com.example.oa.common.response.PageResult;
@@ -105,8 +106,16 @@ public class AuthController {
     public ApiResponse<PageResult<UserListResponse>> userList(@RequestParam(defaultValue = "1") Integer pageNum,
                                                               @RequestParam(defaultValue = "10") Integer pageSize,
                                                               @RequestParam(required = false) String keyword,
+                                                              @RequestParam(required = false) Integer status,
                                                               @RequestHeader("Authorization") String token) {
-        PageResult<UserListResponse> response = sysUserService.getUserList(pageNum, pageSize, keyword, token);
+        PageResult<UserListResponse> response = sysUserService.getUserList(pageNum, pageSize, keyword, status, token);
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/user/{id}")
+    public ApiResponse<UserDetailsResponse> userDetails(@PathVariable Long id,
+                                                        @RequestHeader("Authorization") String token) {
+        UserDetailsResponse response = sysUserService.getUserDetails(id, token);
         return ApiResponse.success(response);
     }
 

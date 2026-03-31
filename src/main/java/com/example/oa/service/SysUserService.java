@@ -7,6 +7,7 @@ import com.example.oa.auth.dto.request.ResetPwdRequest;
 import com.example.oa.auth.dto.request.UpdateStatusRequest;
 import com.example.oa.auth.dto.response.LoginResponse;
 import com.example.oa.auth.dto.response.ProfileResponse;
+import com.example.oa.auth.dto.response.UserDetailsResponse;
 import com.example.oa.auth.dto.response.UserListResponse;
 import com.example.oa.common.response.PageResult;
 import com.example.oa.model.SysUser;
@@ -38,5 +39,7 @@ public interface SysUserService extends IService<SysUser> {
 
     void updateStatus(Long id, UpdateStatusRequest request, String token);
 
-    PageResult<UserListResponse> getUserList(Integer pageNum, Integer pageSize, String keyword, String tokenHeader);
+    PageResult<UserListResponse> getUserList(Integer pageNum, Integer pageSize, String keyword, Integer status, String tokenHeader);
+
+    UserDetailsResponse getUserDetails(Long id, String token);
 }
